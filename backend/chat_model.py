@@ -199,7 +199,7 @@ class ChatBot(CustomFileHandler):
                 "error": "Chat Does Not Exist",
                 "function_call_success": False
             }
-        messages = chat_exists.get("messages", [])
+        messages = sorted(chat_exists.get("messages", []), key=lambda x: datetime.fromisoformat(x["timestamp"]), reverse=True)
         return {
             "chat_name": chat_name,
             "messages": messages,
@@ -223,6 +223,21 @@ class ChatBot(CustomFileHandler):
             "current_number_of_chats": self.number_of_chats,
             "function_call_status": result.acknowledged,
             "Operation Id": str(result.inserted_id)
+        }
+    
+    # Rename Chat Session
+    def rename_chat_session(self, chat_name, new_name):
+        chat_exists = self.mongo_current_chat_histories.find_one({ "chat_name": chat_name })
+        if not chat_exists:
+            return {
+                "error": "Chat Does Not Exist",
+                "function_call_status": False
+            }
+        result = self.mongo_current_chat_histories.update_one({ "chat_name": chat_name }, { "chat_name": new_name })
+        self.current_chat_name = self.mongo_current_chat_histories.find_one({}, sort=[("_id", -1)])
+        return {
+            "Operation Status": f"{result.modified_count} were renamed to {new_name}",
+            "function_call_status": True
         }
 
     # Delete Chat Session
