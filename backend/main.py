@@ -20,6 +20,10 @@ chatbot = ChatBot(
 class Files_To_Be_Removed(BaseModel):
     file_names: list[str] = []
 
+class Chat_Rename(BaseModel):
+    old_name: str
+    new_name: str
+
 # Upload A file
 @app.post("/api/v1/upload_file")
 async def post_upload_file(file: UploadFile):
@@ -39,7 +43,7 @@ async def post_upload_file(file: UploadFile):
     # return chatbot.pdf_handler(file)
 
 # Delete A File
-@app.delete("/api/v1/delete_file{file_name}")
+@app.delete("/api/v1/delete_file/{file_name}")
 async def delete_files(file_name: str):
     return chatbot.delete_document(file_name=file_name)
 
@@ -55,11 +59,34 @@ async def get_files():
 
 # Send LLM Message
 
+@app.patch("/api/v1/rename_chat")
+async def rename_chat(chat_changes: Chat_Rename):
+    return chatbot.rename_chat_session(chat_changes.old_name, chat_changes.new_name)
+
 # Create New Chat Session
+@app.post("/api/v1/create_new_session")
+async def create_new_session():
+    return chatbot.create_new_chat_session()
 
 # Delete New Chat Session
+@app.delete("/api/v1/delete_session/{session_name}")
+async def delete_chat_session(session_name: str):
+    return chatbot.delete_chat_session(session_name)
 
 # Switch New Chat Session
+@app.get("/api/v1/switch_chat_session/{session_name}")
+async def switch_chat_session(session_name: str):
+    return chatbot.get_chat_session(session_name)
+
+# Get Latest Chat Session
+@app.get("/api/v1/get_latest_chat_session")
+async def get_latest_chat_session():
+    return chatbot.get_latest_chat_session()
+
+# Get All Chat Names
+@app.get("/api/v1/get_chat_names")
+async def get_chat_names():
+    return chatbot.get_all_chat_session_names()
 
 
 

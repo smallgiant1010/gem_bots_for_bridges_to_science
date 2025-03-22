@@ -1,19 +1,17 @@
 from datetime import datetime
 import os
-from unittest import result
 from uuid import uuid4
 from langchain_core.documents import Document
 from langchain_mongodb import MongoDBAtlasVectorSearch
 from langchain_ollama import ChatOllama, OllamaEmbeddings
-from langchain_core.messages import SystemMessage, AIMessage, HumanMessage
-from langchain.prompts import ChatPromptTemplate, ChatMessagePromptTemplate
-from langchain.schema.output_parser import StrOutputParser
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import TextLoader
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from dotenv import load_dotenv
 from pymongo import MongoClient
-import pymongo
+from langchain.chains.history_aware_retriever import create_history_aware_retriever 
+from langchain.chains.retrieval import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
 import pymongo.errors
 from file_handler import CustomFileHandler
 from chunkedPrompts import SystemPrompts
@@ -39,8 +37,18 @@ class ChatBot(CustomFileHandler):
         )
         self.mongo_current_chat_histories = self.mongo_current_db["chat_histories"]
         self.number_of_chats = self.mongo_current_chat_histories.count_documents({})
-        self.current_chat_name = self.mongo_current_chat_histories.find_one({}, sort=[('_id', -1)])
+        self.current_chat_name = None
+        self.retriever = self.mongo_vector_store.as_retriever()
+        self.get_latest_chat_session()
         self.create_search_index(embedding_length)
+
+        # Initialize Basic Prompting
+        history_retriever = self.initialize_history_aware_retriever()
+        question_retriever = self.create_question_answer_chain()
+
+        # Create Rag Chain
+        self.rag_chain = create_retrieval_chain(history_retriever, question_retriever)
+
 
 
     # Create Vector Search Index
@@ -49,6 +57,37 @@ class ChatBot(CustomFileHandler):
             self.mongo_vector_store.create_vector_search_index(dimensions=embedding_length)
         except pymongo.errors.OperationFailure:
             return
+        
+    # Create A History Aware Retriever
+    def initialize_history_aware_retriever(self):
+        contextualize_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", SystemPrompts.CONTEXTUALIZE),
+                MessagesPlaceholder("chat_history"),
+                ("human", "{input}")
+            ]
+        )
+        history_aware_retriever = create_history_aware_retriever(
+            llm=self.model,
+            retriever=self.retriever,
+            prompt=contextualize_prompt
+        )
+        return history_aware_retriever
+    
+    # Feed Persona Into LLM
+    def create_question_answer_chain(self):
+        system_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", SystemPrompts.PERSONA),
+                MessagesPlaceholder("chat_history"),
+                ("human", "{input}")
+            ]
+        )
+
+        question_answer_chain = create_stuff_documents_chain(llm=self.model, prompt=system_prompt)
+
+        return question_answer_chain
+    
 
     # Uploading Files
     def upload_file_llm(self, extracted_content):
@@ -155,7 +194,41 @@ class ChatBot(CustomFileHandler):
             "function_call_success": True
         }
     
+    # Create Langchain Chat_History
+    def initialize_chat_history(self):
+        message_history = self.get_chat_session(self.current_chat_name)["messages"]
+        self.langchain_history = [
+            (type, message) for type, message in message_history.items()
+        ]
+
+    
     # LLM Messaging
+    def message_llm(self, human_message: str):
+        result = self.rag_chain.invoke({ "input": human_message, "chat_history": self.langchain_history })
+        ai_message = result["answer"]
+
+        self.langchain_history.append(("human", human_message))
+        self.langchain_history.append(("system", ai_message))
+
+        self.mongo_current_chat_histories.update_one({ "chat_name": self.current_chat_name }, {
+            "$push": { "messages" : { "$each" : [{
+                "type": "human",
+                "message": human_message,
+                "timestamp": datetime.now().isoformat()
+            }, {
+                "type": "ai",
+                "message": ai_message,
+                "timestamp": datetime.now().isoformat()
+            }] } }
+        })
+
+        return {
+            "type": "ai",
+            "message": ai_message,
+            "timestamp": datetime.now().isoformat()
+        }
+
+        
 
     # Get All Chat Session Names
     def get_all_chat_session_names(self):
@@ -174,19 +247,24 @@ class ChatBot(CustomFileHandler):
     # Get Latest Chat Session
     def get_latest_chat_session(self):
         if not self.current_chat_name:
-            return {
-                "error": "You Have No Chats",
-                "function_call_success": False
-            }
-        chat_exists = self.mongo_current_chat_histories.find_one({ "chat_name": self.current_chat_name })
+            new_latest = self.mongo_current_chat_histories.find_one({}, sort=[('_id', -1)])
+
+            if new_latest:
+                self.current_chat_name = new_latest["chat_name"]
+            else:
+                result = self.create_new_chat_session()
+                self.current_chat_name = result["chat_name"]
+                self.initialize_chat_history()
+
+        chat_exists = self.mongo_current_chat_histories.find_one({}, sort=[('_id', -1)])
         if not chat_exists:
             return {
                 "error": "Can't retrieve latest chat session",
                 "function_call_success": False
             }
-        messages = chat_exists.get("messages", [])
+        messages = sorted(chat_exists.get("messages", []), key=lambda x: datetime.fromisoformat(x["timestamp"]), reverse=True)
         return {
-            "chat_name": chat_exists,
+            "chat_name": chat_exists["chat_name"],
             "messages": messages,
             "function_call_success": True
         }
@@ -199,6 +277,8 @@ class ChatBot(CustomFileHandler):
                 "error": "Chat Does Not Exist",
                 "function_call_success": False
             }
+        self.current_chat_name = chat_name
+        self.initialize_chat_history()
         messages = sorted(chat_exists.get("messages", []), key=lambda x: datetime.fromisoformat(x["timestamp"]), reverse=True)
         return {
             "chat_name": chat_name,
@@ -211,14 +291,17 @@ class ChatBot(CustomFileHandler):
         result = self.mongo_current_chat_histories.insert_one({
             "chat_name": f"new_chat_{self.number_of_chats}",
             "messages": [{
-                "type" : "AI",
+                "type" : "ai",
                 "message": "How can I help you?",
                 "timestamp": datetime.now().isoformat()
             }],
             "timestamp": datetime.now().isoformat()
         })
-        self.number_of_chats += 1 if result.acknowledged else 0
-    
+        if result.acknowledged:
+            self.number_of_chats += 1
+            self.current_chat_name = self.get_latest_chat_session()
+            self.initialize_chat_history()
+
         return {
             "current_number_of_chats": self.number_of_chats,
             "function_call_status": result.acknowledged,
@@ -233,8 +316,9 @@ class ChatBot(CustomFileHandler):
                 "error": "Chat Does Not Exist",
                 "function_call_status": False
             }
-        result = self.mongo_current_chat_histories.update_one({ "chat_name": chat_name }, { "chat_name": new_name })
-        self.current_chat_name = self.mongo_current_chat_histories.find_one({}, sort=[("_id", -1)])
+        result = self.mongo_current_chat_histories.update_one({ "chat_name": chat_name }, { "$set": {"chat_name": new_name} })
+        self.current_chat_name = self.get_latest_chat_session()
+        self.initialize_chat_history()
         return {
             "Operation Status": f"{result.modified_count} were renamed to {new_name}",
             "function_call_status": True
@@ -251,6 +335,7 @@ class ChatBot(CustomFileHandler):
         result = self.mongo_current_chat_histories.delete_one({ "chat_name": chat_name})
         self.number_of_chats -= 1 if result.acknowledged else 0
         self.current_chat_name = self.mongo_current_chat_histories.find_one({}, sort=[('_id', -1)])
+        self.initialize_chat_history()
         return {
             "Operation Status": f"{chat_name} session has been successfully deleted",
             "function_call_status": result.acknowledged
@@ -265,4 +350,5 @@ if __name__ == "__main__":
     vector_search_index_name="langchain-test-vector-store-index",
     embedding_length=1024
     )
-    print(chatbot)
+    print(chatbot.get_all_chat_session_names())
+    print(chatbot.number_of_chats)
