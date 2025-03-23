@@ -40,7 +40,11 @@ async def post_upload_file(file: UploadFile):
                 "message": f"File does not exist: {file.filename}"
             }
     return chatbot.upload_file_llm(content)
-    # return chatbot.pdf_handler(file)
+
+# Add To Vector Store
+@app.post("/api/v1/add_to_vector_store")
+async def add_files(file_names: Files_To_Be_Removed):
+    return chatbot.add_documents_to_vector_store(file_names)
 
 # Delete A File
 @app.delete("/api/v1/delete_file/{file_name}")
@@ -58,6 +62,9 @@ async def get_files():
     return chatbot.retrieve_mongo_files()
 
 # Send LLM Message
+@app.post("/api/v1/message_llm")
+async def send_message(query: str):
+    return chatbot.message_llm(query)
 
 @app.patch("/api/v1/rename_chat")
 async def rename_chat(chat_changes: Chat_Rename):

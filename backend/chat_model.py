@@ -39,8 +39,12 @@ class ChatBot(CustomFileHandler):
         self.number_of_chats = self.mongo_current_chat_histories.count_documents({})
         self.current_chat_name = None
         self.retriever = self.mongo_vector_store.as_retriever()
-        self.get_latest_chat_session()
+
+        # Create Search Index
         self.create_search_index(embedding_length)
+
+        # Initialize Chat
+        self.get_latest_chat_session()
 
         # Initialize Basic Prompting
         history_retriever = self.initialize_history_aware_retriever()
@@ -49,8 +53,25 @@ class ChatBot(CustomFileHandler):
         # Create Rag Chain
         self.rag_chain = create_retrieval_chain(history_retriever, question_retriever)
 
+    # -----Vector Store------
 
+    # Retrieve From Vector Store
+    def set_current_file_names(self):
+        result = self.vector_store_collection.distinct("file_name")
 
+        if not result:
+            return {
+                "error": "No Files Currently Added",
+                "function_call_success": False
+            }
+        
+        update = self.mongo_current_chat_histories.update_one({ "chat_name" : self.current_chat_name }, { "$set": { "file_names": [result]}})
+        
+        return {
+            "file_names": result,
+            "function_call_success": update.acknowledged
+        }
+    
     # Create Vector Search Index
     def create_search_index(self, embedding_length):
         try:
@@ -58,36 +79,53 @@ class ChatBot(CustomFileHandler):
         except pymongo.errors.OperationFailure:
             return
         
-    # Create A History Aware Retriever
-    def initialize_history_aware_retriever(self):
-        contextualize_prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", SystemPrompts.CONTEXTUALIZE),
-                MessagesPlaceholder("chat_history"),
-                ("human", "{input}")
-            ]
-        )
-        history_aware_retriever = create_history_aware_retriever(
-            llm=self.model,
-            retriever=self.retriever,
-            prompt=contextualize_prompt
-        )
-        return history_aware_retriever
-    
-    # Feed Persona Into LLM
-    def create_question_answer_chain(self):
-        system_prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", SystemPrompts.PERSONA),
-                MessagesPlaceholder("chat_history"),
-                ("human", "{input}")
-            ]
-        )
+     # Add To Vector Store
+    def add_documents_to_vector_store(self, file_names):
+        documents = list(self.mongo_all_documents_collection.find({ "file_name": { "$in": file_names }}))
+        if not documents:
+            return {
+                "error": "Can't Find Documents In the Database",
+                "function_call_success": False
+            }
+        
+        document_list = []
+        for document in documents:
+            for j, page in enumerate(document["page_contents"]):
+                text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+                chunks = text_splitter.split_text(page["page_content"])
+                document_list.extend([Document(page_content=chunk, metadata={ "file_name": page["file_name"], "page_number" : j + 1 }) for chunk in chunks])
 
-        question_answer_chain = create_stuff_documents_chain(llm=self.model, prompt=system_prompt)
-
-        return question_answer_chain
+        ids = [str(uuid4()) for _ in range(len(document_list))]
+        self.mongo_vector_store.add_documents(documents=document_list, ids=ids)
+        return {
+            "Operation Status": f"{len(ids)} chunks added to Vector Store",
+            "function_call_status": True
+        }
     
+    # Remove From Vector Store
+    def remove_from_vector_store(self, file_names: list[str]):
+        results = []
+        for name in file_names:
+            chunks_exists = self.mongo_vector_store.collection.find_one({ "file_name" : name})
+            if not chunks_exists:
+                results.append({
+                    "error" : f"{name} chunks are not present in the vector store",
+                    "function_call_success" : False
+                })
+                continue
+            
+            delete_result = self.mongo_vector_store.collection.delete_many({ "file_name" : name })
+            results.append({
+                "Operation Status": delete_result.acknowledged,
+                "Number Of Chunks Deleted": delete_result.deleted_count
+            })
+
+        return {
+            "results" : results,
+            "function_call_success" : True
+        }
+    
+    # -----Document Collection-----
 
     # Uploading Files
     def upload_file_llm(self, extracted_content):
@@ -157,27 +195,6 @@ class ChatBot(CustomFileHandler):
             "function_call_success": True
         }
     
-    def remove_from_vector_store(self, file_names: list[str]):
-        results = []
-        for name in file_names:
-            chunks_exists = self.mongo_vector_store.collection.find_one({ "file_name" : name})
-            if not chunks_exists:
-                results.append({
-                    "error" : f"{name} chunks are not present in the vector store",
-                    "function_call_success" : False
-                })
-                continue
-            
-            delete_result = self.mongo_vector_store.collection.delete_many({ "file_name" : name })
-            results.append({
-                "Operation Status": delete_result.acknowledged,
-                "Number Of Chunks Deleted": delete_result.deleted_count
-            })
-
-        return {
-            "results" : results,
-            "function_call_success" : True
-        }
 
     # Retrieving All Files From Mongo
     def retrieve_mongo_files(self):
@@ -194,13 +211,44 @@ class ChatBot(CustomFileHandler):
             "function_call_success": True
         }
     
+    # -----RAG LLM-----
+
+    # Create A History Aware Retriever
+    def initialize_history_aware_retriever(self):
+        contextualize_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", SystemPrompts.CONTEXTUALIZE),
+                MessagesPlaceholder("chat_history"),
+                ("human", "{input}")
+            ]
+        )
+        history_aware_retriever = create_history_aware_retriever(
+            llm=self.model,
+            retriever=self.retriever,
+            prompt=contextualize_prompt
+        )
+        return history_aware_retriever
+    
+    # Feed Persona Into LLM
+    def create_question_answer_chain(self):
+        system_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", SystemPrompts.PERSONA),
+                MessagesPlaceholder("chat_history"),
+                ("human", "{input}")
+            ]
+        )
+
+        question_answer_chain = create_stuff_documents_chain(llm=self.model, prompt=system_prompt)
+
+        return question_answer_chain
+    
     # Create Langchain Chat_History
     def initialize_chat_history(self):
         message_history = self.get_chat_session(self.current_chat_name)["messages"]
         self.langchain_history = [
             (type, message) for type, message in message_history.items()
         ]
-
     
     # LLM Messaging
     def message_llm(self, human_message: str):
@@ -222,13 +270,14 @@ class ChatBot(CustomFileHandler):
             }] } }
         })
 
+        self.set_current_file_names()
         return {
             "type": "ai",
             "message": ai_message,
             "timestamp": datetime.now().isoformat()
         }
 
-        
+    # -----Chat Sessions-----
 
     # Get All Chat Session Names
     def get_all_chat_session_names(self):
@@ -263,9 +312,11 @@ class ChatBot(CustomFileHandler):
                 "function_call_success": False
             }
         messages = sorted(chat_exists.get("messages", []), key=lambda x: datetime.fromisoformat(x["timestamp"]), reverse=True)
+        file_names = chat_exists.get("file_names", [])
         return {
             "chat_name": chat_exists["chat_name"],
             "messages": messages,
+            "file_names": file_names,
             "function_call_success": True
         }
 
@@ -280,9 +331,11 @@ class ChatBot(CustomFileHandler):
         self.current_chat_name = chat_name
         self.initialize_chat_history()
         messages = sorted(chat_exists.get("messages", []), key=lambda x: datetime.fromisoformat(x["timestamp"]), reverse=True)
+        file_names = chat_exists.get("file_names", [])
         return {
             "chat_name": chat_name,
             "messages": messages,
+            "file_names": file_names,
             "function_call_success": True
         }
 
@@ -293,6 +346,7 @@ class ChatBot(CustomFileHandler):
             "messages": [{
                 "type" : "ai",
                 "message": "How can I help you?",
+                "file_names": [],
                 "timestamp": datetime.now().isoformat()
             }],
             "timestamp": datetime.now().isoformat()
