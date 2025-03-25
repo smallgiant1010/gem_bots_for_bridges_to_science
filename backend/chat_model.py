@@ -97,6 +97,7 @@ class ChatBot(CustomFileHandler):
 
         ids = [str(uuid4()) for _ in range(len(document_list))]
         self.mongo_vector_store.add_documents(documents=document_list, ids=ids)
+        self.retriever = self.mongo_vector_store.as_retriever()
         return {
             "Operation Status": f"{len(ids)} chunks added to Vector Store",
             "function_call_status": True
@@ -119,7 +120,7 @@ class ChatBot(CustomFileHandler):
                 "Operation Status": delete_result.acknowledged,
                 "Number Of Chunks Deleted": delete_result.deleted_count
             })
-
+        self.retriever = self.mongo_vector_store.as_retriever()
         return {
             "results" : results,
             "function_call_success" : True
@@ -171,6 +172,7 @@ class ChatBot(CustomFileHandler):
         print("----Adding Documents----")
         self.mongo_vector_store.add_documents(documents=documents,ids=ids)
         print("----Finished Adding Documents----")
+        self.retriever = self.mongo_vector_store.as_retriever()
         return {
             "results": [{
                 "Operation Status": result.acknowledged,
@@ -189,6 +191,7 @@ class ChatBot(CustomFileHandler):
             }
         delete_result_of_documents = self.mongo_all_documents_collection.delete_many({ "file_name": file_name})
         delete_result_of_embeddings = self.mongo_vector_store.collection.delete_many({ "file_name" : file_name })
+        self.retriever = self.mongo_vector_store.as_retriever()
         return {
             "all_documents_collection": f"Operational Status: {delete_result_of_documents.deleted_count} documents were deleted from all_documents collection",
             "vector_store_collection" : f"Operational Status: {delete_result_of_embeddings.deleted_count} documents were deleted from vector_store collection",
@@ -245,10 +248,13 @@ class ChatBot(CustomFileHandler):
     
     # Create Langchain Chat_History
     def initialize_chat_history(self):
-        message_history = self.get_chat_session(self.current_chat_name)["messages"]
-        self.langchain_history = [
-            (type, message) for type, message in message_history.items()
-        ]
+        chat_session = self.mongo_current_chat_histories.find_one({ "chat_name": self.current_chat_name})
+        if chat_session:
+            message_history = chat_session.get("messages", [])
+            self.langchain_history = [
+                (message["type"], message["message"]) for message in message_history]
+        else:
+            self.langchain_history = []
     
     # LLM Messaging
     def message_llm(self, human_message: str):
@@ -257,15 +263,18 @@ class ChatBot(CustomFileHandler):
 
         self.langchain_history.append(("human", human_message))
         self.langchain_history.append(("system", ai_message))
+        file_names = self.vector_store_collection.distinct("file_name")
 
         self.mongo_current_chat_histories.update_one({ "chat_name": self.current_chat_name }, {
             "$push": { "messages" : { "$each" : [{
                 "type": "human",
                 "message": human_message,
+                "file_names": file_names,
                 "timestamp": datetime.now().isoformat()
             }, {
                 "type": "ai",
                 "message": ai_message,
+                "file_names": file_names,
                 "timestamp": datetime.now().isoformat()
             }] } }
         })
@@ -274,6 +283,7 @@ class ChatBot(CustomFileHandler):
         return {
             "type": "ai",
             "message": ai_message,
+            "file_names": [],
             "timestamp": datetime.now().isoformat()
         }
 
@@ -303,8 +313,7 @@ class ChatBot(CustomFileHandler):
             else:
                 result = self.create_new_chat_session()
                 self.current_chat_name = result["chat_name"]
-                self.initialize_chat_history()
-
+        self.initialize_chat_history()
         chat_exists = self.mongo_current_chat_histories.find_one({}, sort=[('_id', -1)])
         if not chat_exists:
             return {
@@ -372,7 +381,6 @@ class ChatBot(CustomFileHandler):
             }
         result = self.mongo_current_chat_histories.update_one({ "chat_name": chat_name }, { "$set": {"chat_name": new_name} })
         self.current_chat_name = self.get_latest_chat_session()
-        self.initialize_chat_history()
         return {
             "Operation Status": f"{result.modified_count} were renamed to {new_name}",
             "function_call_status": True
@@ -405,4 +413,4 @@ if __name__ == "__main__":
     embedding_length=1024
     )
     print(chatbot.get_all_chat_session_names())
-    print(chatbot.number_of_chats)
+    print(chatbot.current_chat_name)
