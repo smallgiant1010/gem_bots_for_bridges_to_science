@@ -341,6 +341,9 @@ class ChatBot(CustomFileHandler):
         self.initialize_chat_history()
         messages = sorted(chat_exists.get("messages", []), key=lambda x: datetime.fromisoformat(x["timestamp"]), reverse=True)
         file_names = chat_exists.get("file_names", [])
+        history_retriever = self.initialize_history_aware_retriever()
+        question_retriever = self.create_question_answer_chain()
+        self.rag_chain = create_retrieval_chain(history_retriever, question_retriever)
         return {
             "chat_name": chat_name,
             "messages": messages,
