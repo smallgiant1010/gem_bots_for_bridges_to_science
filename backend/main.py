@@ -64,6 +64,7 @@ async def get_files():
 # Send LLM Message
 @app.post("/api/v1/message_llm")
 async def send_message(query: str):
+    # print(query)
     return chatbot.message_llm(query)
 
 @app.patch("/api/v1/rename_chat")
@@ -78,11 +79,13 @@ async def create_new_session():
 # Delete New Chat Session
 @app.delete("/api/v1/delete_session/{session_name}")
 async def delete_chat_session(session_name: str):
+    # print(session_name)
     return chatbot.delete_chat_session(session_name)
 
 # Switch New Chat Session
 @app.get("/api/v1/switch_chat_session/{session_name}")
 async def switch_chat_session(session_name: str):
+    # print(session_name)
     return chatbot.get_chat_session(session_name)
 
 # Get Latest Chat Session
