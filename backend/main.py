@@ -44,7 +44,7 @@ async def post_upload_file(file: UploadFile):
 # Add To Vector Store
 @app.post("/api/v1/add_to_vector_store")
 async def add_files(file_names: Files_To_Be_Removed):
-    return chatbot.add_documents_to_vector_store(file_names)
+    return chatbot.add_documents_to_vector_store(file_names.file_names)
 
 # Delete A File
 @app.delete("/api/v1/delete_file/{file_name}")
@@ -54,7 +54,12 @@ async def delete_files(file_name: str):
 # Remove From Vector Store
 @app.delete("/api/v1/remove_files")
 async def remove_files(file_names: Files_To_Be_Removed):
-    return chatbot.remove_from_vector_store(file_names=file_names.file_names)
+    return chatbot.remove_from_vector_store(file_names.file_names)
+
+# Retrieve From Vector Store
+@app.get("/api/v1/get_current_files_in_store")
+async def get_all_files_in_vector_store():
+    return chatbot.get_all_files_in_vector_store()
 
 # Retrieve All Files From Mongo
 @app.get("/api/v1/get_files")
@@ -67,6 +72,7 @@ async def send_message(query: str):
     # print(query)
     return chatbot.message_llm(query)
 
+# Rename LLM
 @app.patch("/api/v1/rename_chat")
 async def rename_chat(chat_changes: Chat_Rename):
     return chatbot.rename_chat_session(chat_changes.old_name, chat_changes.new_name)

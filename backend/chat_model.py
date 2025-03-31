@@ -81,26 +81,31 @@ class ChatBot(CustomFileHandler):
         
      # Add To Vector Store
     def add_documents_to_vector_store(self, file_names):
+        file_exists = list(self.vector_store_collection.find({ "file_name": { "$in": file_names}}))
+        if file_exists:
+            return {
+                "error": "File is Already In the Vector Store",
+                "function_call_success": False
+            }
         documents = list(self.mongo_all_documents_collection.find({ "file_name": { "$in": file_names }}))
         if not documents:
             return {
                 "error": "Can't Find Documents In the Database",
                 "function_call_success": False
             }
-        
         document_list = []
         for document in documents:
             for j, page in enumerate(document["page_contents"]):
                 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-                chunks = text_splitter.split_text(page["page_content"])
-                document_list.extend([Document(page_content=chunk, metadata={ "file_name": page["file_name"], "page_number" : j + 1 }) for chunk in chunks])
+                chunks = text_splitter.split_text(page)
+                document_list.extend([Document(page_content=chunk, metadata={ "file_name": document["file_name"], "page_number" : j + 1 }) for chunk in chunks])
 
         ids = [str(uuid4()) for _ in range(len(document_list))]
         self.mongo_vector_store.add_documents(documents=document_list, ids=ids)
         self.retriever = self.mongo_vector_store.as_retriever()
         return {
             "Operation Status": f"{len(ids)} chunks added to Vector Store",
-            "function_call_status": True
+            "function_call_success": True
         }
     
     # Remove From Vector Store
@@ -126,6 +131,13 @@ class ChatBot(CustomFileHandler):
             "function_call_success" : True
         }
     
+    def get_all_files_in_vector_store(self):
+        results = self.vector_store_collection.distinct("file_name")
+        return {
+            "results": results,
+            "function_call_success": True
+        }
+    
     # -----Document Collection-----
 
     # Uploading Files
@@ -135,7 +147,6 @@ class ChatBot(CustomFileHandler):
         matches = self.mongo_all_documents_collection.find_one({ "file_name": file_name})
         if matches:
             return {
-                "results": [matches],
                 "error": "Files already exist",
                 "function_call_success": False
             }
@@ -178,6 +189,7 @@ class ChatBot(CustomFileHandler):
                 "Operation Status": result.acknowledged,
                 "Operation Id" : str(new_file.inserted_id)
             }],
+            "timestamp": datetime.now().isoformat(),
             "function_call_success" : True
         }
     
@@ -291,7 +303,7 @@ class ChatBot(CustomFileHandler):
 
     # Get All Chat Session Names
     def get_all_chat_session_names(self):
-        chats_exist = list(self.mongo_current_chat_histories.find({}))
+        chats_exist = list(self.mongo_current_chat_histories.find({}, sort=[('_id', -1)]))
         if not chats_exist:
             return {
                 "error": "You Have No Chats",
@@ -369,24 +381,31 @@ class ChatBot(CustomFileHandler):
             self.initialize_chat_history()
 
         return {
+            "new_chat_name": self.current_chat_name,
             "current_number_of_chats": self.number_of_chats,
-            "function_call_status": result.acknowledged,
+            "function_call_success": result.acknowledged,
             "Operation Id": str(result.inserted_id)
         }
     
     # Rename Chat Session
     def rename_chat_session(self, chat_name, new_name):
+        renamed_chat_exists = self.mongo_current_chat_histories.find_one({ "chat_name": new_name })
+        if renamed_chat_exists:
+            return {
+                "error": "Cannot rename to new name",
+                "function_call_success": False
+            }
         chat_exists = self.mongo_current_chat_histories.find_one({ "chat_name": chat_name })
         if not chat_exists:
             return {
                 "error": "Chat Does Not Exist",
-                "function_call_status": False
+                "function_call_success": False
             }
         result = self.mongo_current_chat_histories.update_one({ "chat_name": chat_name }, { "$set": {"chat_name": new_name} })
         self.current_chat_name = self.get_latest_chat_session()
         return {
             "Operation Status": f"{result.modified_count} were renamed to {new_name}",
-            "function_call_status": True
+            "function_call_success": True
         }
 
     # Delete Chat Session
@@ -395,7 +414,7 @@ class ChatBot(CustomFileHandler):
         if not chat_exists:
             return {
                 "error": "Chat Does Not Exist",
-                "function_call_status": False
+                "function_call_success": False
             }
         result = self.mongo_current_chat_histories.delete_one({ "chat_name": chat_name})
         self.number_of_chats -= 1 if result.acknowledged else 0
@@ -403,7 +422,7 @@ class ChatBot(CustomFileHandler):
         self.initialize_chat_history()
         return {
             "Operation Status": f"{chat_name} session has been successfully deleted",
-            "function_call_status": result.acknowledged
+            "function_call_success": result.acknowledged
         }
 
 if __name__ == "__main__":

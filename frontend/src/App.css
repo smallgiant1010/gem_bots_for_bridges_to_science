@@ -3,3 +3,15 @@
 #brand {
     font-family: 'Modak', sans-serif;
 }
+
+.file-container-file-name {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.removal-icon:hover {
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.3s ease-in-out;
+}
