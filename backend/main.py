@@ -13,8 +13,8 @@ chatbot = ChatBot(
     db_name="langchain_testing", 
     document_collection_name="all_documents",
     vector_store_collection_name="vector_store",
-    vector_search_index_name="langchain-test-vector-store-index",
-    embedding_length=1024
+    vector_search_index_name="gemini-vector-store-index",
+    embedding_length=768
     )
 
 class Files_To_Be_Removed(BaseModel):

@@ -3,7 +3,7 @@ import Button from "react-bootstrap/Button";
 import { useChatContext } from "../Context/ChatContext";
 
 const Chat = (props) => {
-  const {dispatch} = useChatContext();
+  const {current_chat, dispatch} = useChatContext();
   const handleRemoval = async(e) => {
     e.preventDefault();
     const apiCall = await fetch(`/api/v1/delete_session/${props.name}`, {
@@ -22,6 +22,9 @@ const Chat = (props) => {
 
   const handleSelection = async(e) => {
     e.preventDefault();
+    if(current_chat === props.name) {
+      return;
+    }
     const apiCall = await fetch(`/api/v1/switch_chat_session/${props.name}`)
     .then(async(response) => response.json())
     .catch(err => console.log(err));

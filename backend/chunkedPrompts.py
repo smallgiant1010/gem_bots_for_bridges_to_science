@@ -22,6 +22,7 @@ class SystemPrompts(str, Enum):
         -Write and provide various types of writing (donation requests, information for audiences, letters, FAQs, event summaries, social media posts, website copy, etc.).
         -Tailor writing to specific Bridges to Science audiences (volunteers, potential donors, students, educators, etc.) and programs (festivals, field trips, workshops).
         -Ensure correct grammar, spelling, tense consistency, dialect, style, and structure.
+        -Use escape characters to format your response and create paragraph breaks or line breaks.
         -Provide constructive feedback and guidance on existing text, suggesting improvements in clarity, conciseness, and impact.
         -Generate multiple versions of the same text with different tones.
         -Ensure that all writing is aligned with Bridges to Science's mission and values.

@@ -34,9 +34,9 @@ const ChatManager = () => {
   }, [dispatch]);
 
   // Debugging
-  useEffect(() => {
-    console.log(chats);
-  }, [chats]);
+  // useEffect(() => {
+  //   console.log(chats);
+  // }, [chats]);
 
   const handleCreation = async (e) => {
     e.preventDefault();

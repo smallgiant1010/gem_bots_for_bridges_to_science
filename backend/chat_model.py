@@ -20,10 +20,10 @@ load_dotenv()
 
 class ChatBot(CustomFileHandler):
     def __init__(self, connection_string: str, db_name, document_collection_name, vector_store_collection_name, vector_search_index_name, embedding_length):
-        self.model = ChatOllama(model="mistral")
-        self.embeddings_model = OllamaEmbeddings(model="bge-large")
-        # self.model = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite")
-        # self.embeddings_model = GoogleGenerativeAIEmbeddings(model="text-embedding-004")
+        # self.model = ChatOllama(model="mistral")
+        # self.embeddings_model = OllamaEmbeddings(model="bge-large")
+        self.model = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite")
+        self.embeddings_model = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
         self.mongo_client = MongoClient(connection_string)
         self.mongo_current_db = self.mongo_client[db_name]
         self.mongo_all_documents_collection = self.mongo_current_db[document_collection_name]
@@ -306,7 +306,7 @@ class ChatBot(CustomFileHandler):
         chats_exist = list(self.mongo_current_chat_histories.find({}, sort=[('_id', -1)]))
         if not chats_exist:
             return {
-                "error": "You Have No Chats",
+                "chat_names": [],
                 "function_call_success": False
             }
         chat_names = [chat.get("chat_name", "") for chat in chats_exist]
@@ -332,7 +332,7 @@ class ChatBot(CustomFileHandler):
                 "error": "Can't retrieve latest chat session",
                 "function_call_success": False
             }
-        messages = sorted(chat_exists.get("messages", []), key=lambda x: datetime.fromisoformat(x["timestamp"]), reverse=True)
+        messages = chat_exists.get("messages", [])
         file_names = chat_exists.get("file_names", [])
         return {
             "chat_name": chat_exists["chat_name"],
@@ -351,7 +351,7 @@ class ChatBot(CustomFileHandler):
             }
         self.current_chat_name = chat_name
         self.initialize_chat_history()
-        messages = sorted(chat_exists.get("messages", []), key=lambda x: datetime.fromisoformat(x["timestamp"]), reverse=True)
+        messages = chat_exists.get("messages", [])
         file_names = chat_exists.get("file_names", [])
         history_retriever = self.initialize_history_aware_retriever()
         question_retriever = self.create_question_answer_chain()
@@ -379,6 +379,9 @@ class ChatBot(CustomFileHandler):
             self.number_of_chats += 1
             self.current_chat_name = self.get_latest_chat_session()
             self.initialize_chat_history()
+            history_retriever = self.initialize_history_aware_retriever()
+            question_retriever = self.create_question_answer_chain()
+            self.rag_chain = create_retrieval_chain(history_retriever, question_retriever)
 
         return {
             "new_chat_name": self.current_chat_name,
@@ -431,8 +434,8 @@ if __name__ == "__main__":
     db_name="langchain_testing", 
     document_collection_name="all_documents",
     vector_store_collection_name="vector_store",
-    vector_search_index_name="langchain-test-vector-store-index",
-    embedding_length=1024
+    vector_search_index_name="gemini-vector-store-index",
+    embedding_length=768
     )
     print(chatbot.get_all_chat_session_names())
     print(chatbot.current_chat_name)

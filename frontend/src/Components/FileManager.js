@@ -22,7 +22,7 @@ const FileManager = () => {
     const get_all_files = async() => {
         const all_files_api_call = await fetch("/api/v1/get_files").then(async(response) => response.json()).catch(err => console.log(err));
         if(!all_files_api_call["function_call_success"]) {
-            throw new Error("ERROR: ", all_files_api_call["error"]);
+            throw new Error(`ERROR: ${all_files_api_call["error"]}`);
         }
         const all_selected_files = await fetch("/api/v1/get_current_files_in_store").then(async(response) => response.json()).catch(err => console.log(err));
         setAllFiles(prev => all_files_api_call["files"]);
@@ -92,8 +92,9 @@ const FileManager = () => {
           variant="primary"
           className="d-flex justify-content-evenly align-items-center w-100"
           onClick={() => document.getElementById("fileUpload").click()}
+          size="sm"
         >
-          <IoCloudUploadOutline color="white" size={48} />
+          <IoCloudUploadOutline color="white" size={32} />
           <h5 className="m-0">Upload A File</h5>
         </Button>
       </Form.Label>

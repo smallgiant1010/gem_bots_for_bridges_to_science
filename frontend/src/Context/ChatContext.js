@@ -8,7 +8,7 @@ const ChatContextReducer = (state, action) => {
             return {
                 ...state,
                 current_chat: action.payload.chat_name,
-                messages: [action.payload.messages],
+                messages: action.payload.messages,
             };
         case "UPDATE_CHATS":
             return { ...state, chats: [...action.payload.chat_names] };
@@ -59,7 +59,6 @@ export const ChatContextProvider = ({ children }) => {
 
 export const useChatContext = () => {
     const context = useContext(ChatContext);
-    // console.log(context);
     if (!context) {
         throw new Error("ChatContext must be used within a ChatContextProvider");
     }
