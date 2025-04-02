@@ -1,12 +1,13 @@
 import Form from "react-bootstrap/Form";
 import { IoCloudUploadOutline } from "react-icons/io5";
 import Button from "react-bootstrap/esm/Button";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useChatContext } from "../Context/ChatContext";
 import { AiOutlineRobot } from "react-icons/ai";
 import { Accordion, ListGroup, Toast, ToastContainer } from "react-bootstrap";
 import Col from "react-bootstrap/Col";
 import FileContainer from "./FileContainer";
+import Loading from "./Loading";
 
 const FileManager = () => {
   const { selected_files, dispatch } = useChatContext();
@@ -116,9 +117,11 @@ const FileManager = () => {
           <Accordion.Header>Selected Files</Accordion.Header>
           <Accordion.Body>
             <ListGroup>
+              <Suspense fallback={<Loading />}>
                 {[...selected_files]?.map((item, index) => {
-                    return <FileContainer key={index} file_name={item} start_selected={true} removeAFile={removeFile}/>
-                })}
+                      return <FileContainer key={index} file_name={item} start_selected={true} removeAFile={removeFile}/>
+                  })}
+              </Suspense>
             </ListGroup>
           </Accordion.Body>
         </Accordion.Item>
@@ -126,9 +129,11 @@ const FileManager = () => {
             <Accordion.Header>All Files Uploaded</Accordion.Header>
             <Accordion.Body>
                 <ListGroup>
+                  <Suspense fallback={<Loading />}>
                     {allFiles?.map((item, index) => {
-                        return <FileContainer key={index} file_name={item} start_selected={false} removeAFile={removeFile}/>
-                    })}
+                          return <FileContainer key={index} file_name={item} start_selected={false} removeAFile={removeFile}/>
+                      })}
+                  </Suspense>
                 </ListGroup>
             </Accordion.Body>
           </Accordion.Item>

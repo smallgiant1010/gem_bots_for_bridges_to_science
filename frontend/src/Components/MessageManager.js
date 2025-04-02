@@ -1,10 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useChatContext } from "../Context/ChatContext";
 import { Col, ListGroup } from "react-bootstrap";
 import Message from "./Message";
+import Searchbar from "./Searchbar";
 
 const MessageManager = () => {
-  const { current_chat, messages, dispatch } = useChatContext();
+  const { messages, dispatch } = useChatContext();
+  const listRef = useRef(null);
+
+  const scrollToBottom = () => {
+    listRef.current.scrollIntoView({behavior: "smooth", block: "end"});
+  }
 
   useEffect(() => {
     const getLatestMessages = async () => {
@@ -25,18 +31,21 @@ const MessageManager = () => {
     getLatestMessages();
   }, [dispatch]);
 
-  useEffect(() => {
-    console.log(current_chat);
-    console.log(messages);
-  }, [current_chat, messages]);
+  // useEffect(() => {
+  //   console.log(current_chat);
+  //   console.log(messages);
+  // }, [current_chat, messages]);
 
   return (
-    <Col xs={8} style={{ "backgroundColor": "#202020" }}>
-      <ListGroup className="pt-2">
+    <Col xs={8} style={{ "backgroundColor": "#202020", "height": "100vh" }} className="d-flex flex-column position-relative">
+      <ListGroup className="pt-2 overflow-y-scroll" style={{ "maxHeight": "calc(100vh - 75px)" }} ref={listRef}>
         {messages?.length > 0 && messages?.map((info, index) => {
-            return <Message messageInfo={info} key={index} />
+          return <Message messageInfo={info} key={index} />
         })}
       </ListGroup>
+      <div className="d-flex align-items-center justify-content-center">
+        <Searchbar scrollMethod={scrollToBottom}/>
+      </div>
     </Col>
   );
 };

@@ -8,7 +8,7 @@ const Chat = (props) => {
     e.preventDefault();
     const apiCall = await fetch(`/api/v1/delete_session/${props.name}`, {
       "method": "DELETE"
-    }).then(async(response) => await response.json()).catch(err => console.log(err))
+    }).then(async(response) => await response.json()).catch(err => console.log(err));
     if (!apiCall["function_call_success"]) {
       throw new Error("ERROR: ", apiCall["error"]);
     }
@@ -42,8 +42,9 @@ const Chat = (props) => {
   return (
     <>
       <Button
-        variant="secondary"
+        variant={current_chat === props.name ? "success" : "secondary"}
         className="border border-3 border-dark-subtle p-2 m-2 d-flex justify-content-between align-items-center"
+        style={{"width": "calc(100% - 16px)"}}
         onClick={handleSelection}
       >
         <h6 className="m-0">{props.name}</h6>

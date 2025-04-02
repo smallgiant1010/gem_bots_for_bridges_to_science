@@ -425,7 +425,7 @@ class ChatBot(CustomFileHandler):
         self.initialize_chat_history()
         return {
             "Operation Status": f"{chat_name} session has been successfully deleted",
-            "function_call_success": result.acknowledged
+            "function_call_success": True
         }
 
 if __name__ == "__main__":
