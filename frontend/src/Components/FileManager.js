@@ -1,67 +1,79 @@
 import Form from "react-bootstrap/Form";
 import { IoCloudUploadOutline } from "react-icons/io5";
 import Button from "react-bootstrap/esm/Button";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useChatContext } from "../Context/ChatContext";
-import { AiOutlineRobot } from "react-icons/ai";
-import { Accordion, ListGroup, Toast, ToastContainer } from "react-bootstrap";
+import { Accordion, ListGroup } from "react-bootstrap";
 import Col from "react-bootstrap/Col";
 import FileContainer from "./FileContainer";
 import Loading from "./Loading";
+import { useToastContext } from "../Context/ToastContext";
 
 const FileManager = () => {
   const { selected_files, dispatch } = useChatContext();
-  const [showToast, setShowToast] = useState(false);
   const [allFiles, setAllFiles] = useState([]);
-  const [toastInfo, setToastInfo] = useState({
-    timestamp: "",
-    message: "",
-    file_name: "",
-  });
+  const { addToast } = useToastContext();
+
+  const get_all_files = useCallback(async() => {
+    try {
+      let response = await fetch("/api/v1/get_files");
+      if(!response.ok) {
+        throw new Error("ERROR: Server Down. Please Contact Developer.");
+      }
+      const all_files_api_call = await response.json();
+
+      response = await fetch("/api/v1/get_current_files_in_store");
+      if(!response.ok) {
+        throw new Error("ERROR: Server Down. Please Contact Developer.");
+      }
+      const all_selected_files = await response.json();
+
+      setAllFiles(prev => all_files_api_call["files"]);
+      dispatch({
+          "type": "ADD_MULTIPLE_FILES",
+          "payload": {
+              "file_names": all_selected_files["results"]
+          }
+      });
+    }
+    catch(err) {
+      addToast({
+        "id": new Date().toISOString(),
+        "message": err
+      });
+    }
+  }, [dispatch, addToast]);
 
   useEffect(() => {
-    const get_all_files = async() => {
-        const all_files_api_call = await fetch("/api/v1/get_files").then(async(response) => response.json()).catch(err => console.log(err));
-        if(!all_files_api_call["function_call_success"]) {
-            throw new Error(`ERROR: ${all_files_api_call["error"]}`);
-        }
-        const all_selected_files = await fetch("/api/v1/get_current_files_in_store").then(async(response) => response.json()).catch(err => console.log(err));
-        setAllFiles(prev => all_files_api_call["files"]);
-        dispatch({
-            "type": "ADD_MULTIPLE_FILES",
-            "payload": {
-                "file_names": all_selected_files["results"]
-            }
-        });
-    };
     get_all_files();
-  }, [dispatch]);
+  }, [get_all_files]);
 
-  const removeFile = (file_name) => {
+  const removeFile = useCallback((file_name) => {
     setAllFiles(prev => prev.filter(name => name !== file_name));
-  }
-
-//   useEffect(() => {
-//     console.log(selected_files);
-//   }, [selected_files]);
+  }, []);
 
   const handleFile = async (e) => {
     e.preventDefault();
     const selectedFile = e.target.files[0];
     const formData = new FormData();
     formData.append("file", selectedFile);
-    const apiCall = await fetch("/api/v1/upload_file", {
+    const response = await fetch("/api/v1/upload_file", {
       method: "POST",
       body: formData,
-    })
-      .then(async (response) => await response.json())
-      .catch((err) => console.log(err));
+    });
+    if(!response.ok) {
+      addToast({
+        id: new Date().toISOString(),
+        message: "ERROR: Server Down. Please Contact Developer"
+      });
+      return;
+    }
+    const apiCall = await response.json();
     if (apiCall["function_call_success"]) {
-      setToastInfo((prev) => ({
-        timestamp: apiCall["timestamp"],
-        message: `I Got Your File! ☺️`,
-        file_name: selectedFile.name,
-      }));
+      addToast({
+        id: apiCall["timestamp"],
+        message: `I Got ${selectedFile.name}! ☺️`,
+      });
       dispatch({
         type: "ADD_SELECTED_FILE",
         payload: {
@@ -70,13 +82,11 @@ const FileManager = () => {
       });
       setAllFiles(prev => [...prev, selectedFile.name]);
     } else {
-      setToastInfo((prev) => ({
-        timestamp: new Date().toISOString(),
+      addToast({
+        id: new Date().toISOString(),
         message: `I Already Have this File! 😠`,
-        file_name: selectedFile.name,
-      }));
+      });
     }
-    setShowToast(true);
   };
 
   return (
@@ -99,19 +109,6 @@ const FileManager = () => {
           <h5 className="m-0">Upload A File</h5>
         </Button>
       </Form.Label>
-      <ToastContainer className="p-3" position="top-end" style={{ zIndex: 1 }}>
-        <Toast autohide delay={2000} show={showToast} onClose={() => setShowToast(false)}>
-          <Toast.Header>
-            <AiOutlineRobot color="cyan" className="rounded me-2" />
-            <strong className="me-auto">BridgesWriter</strong>
-            <small>{toastInfo.timestamp}</small>
-          </Toast.Header>
-          <Toast.Body>
-            <p>Uploaded File: {toastInfo.file_name}</p>
-            <p>{toastInfo.message}</p>
-          </Toast.Body>
-        </Toast>
-      </ToastContainer>
       <Accordion defaultActiveKey={['0', '1']} alwaysOpen>
         <Accordion.Item eventKey="0">
           <Accordion.Header>Selected Files</Accordion.Header>

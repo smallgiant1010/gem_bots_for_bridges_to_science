@@ -4,6 +4,14 @@ export const ChatContext = createContext();
 
 const ChatContextReducer = (state, action) => {
     switch (action.type) {
+        case "RENAME_CHAT":
+            const index = state.chats.indexOf(action.payload.old_name);
+            if(index === -1) return state;
+            return {
+                ...state,
+                chats: state.chats.map((v, i) => (i === index ? action.payload.new_name : v)),
+                current_chat: state.current_chat !== action.payload.old_name ? action.payload.new_name : action.payload.old_name
+            } 
         case "CHANGE_CHAT":
             return {
                 ...state,

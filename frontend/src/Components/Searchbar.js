@@ -2,25 +2,26 @@ import { useState } from "react";
 import { InputGroup, Button, Form } from "react-bootstrap";
 import { useChatContext } from "../Context/ChatContext";
 import Loading from "./Loading";
+import { useToastContext } from "../Context/ToastContext";
 
-const Searchbar = ({ scrollMethod }) => {
+const Searchbar = () => {
     const [message, setMessage] = useState("");
     const { dispatch } = useChatContext();
     const [isLoading, setIsLoading] = useState(false);
+    const { addToast } = useToastContext();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!message) {
             return;
         }
-        scrollMethod();
         dispatch({
             "type": "ADD_MESSAGE",
             "payload": {
                 "message": {
                     "type": "human",
                     "message": message,
-                    "timestamp": new Date().toISOString().split("T")[0]
+                    "timestamp": new Date().toISOString()
                 }
             }
         });
@@ -46,7 +47,10 @@ const Searchbar = ({ scrollMethod }) => {
             });
         }
         catch(err) {
-            console.log(err);
+            addToast({
+                "id": new Date().toISOString(),
+                "message": "ERROR: The AI could not generate a response. Please try again in a minute.",
+            });
         }
         finally {
             setIsLoading(false);

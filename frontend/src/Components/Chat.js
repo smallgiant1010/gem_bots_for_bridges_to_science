@@ -1,16 +1,34 @@
 import { FaTrashAlt } from "react-icons/fa";
 import Button from "react-bootstrap/Button";
 import { useChatContext } from "../Context/ChatContext";
+import { Form } from "react-bootstrap";
+import { useState } from "react";
+import { useToastContext } from "../Context/ToastContext";
 
 const Chat = (props) => {
   const {current_chat, dispatch} = useChatContext();
+  const [oldChatName, setOldChatName] = useState(props.name);
+  const [chatName, setChatName] = useState(oldChatName);
+  const {addToast} = useToastContext();
   const handleRemoval = async(e) => {
     e.preventDefault();
-    const apiCall = await fetch(`/api/v1/delete_session/${props.name}`, {
+    const response = await fetch(`/api/v1/delete_session/${props.name}`, {
       "method": "DELETE"
-    }).then(async(response) => await response.json()).catch(err => console.log(err));
+    });
+    if(!response.ok) {
+      addToast({
+        id: new Date().toISOString(),
+        "message": "ERROR: Server Down. Please Contact Developer."
+      });
+      return;
+    }
+    const apiCall = await response.json();
     if (!apiCall["function_call_success"]) {
-      throw new Error("ERROR: ", apiCall["error"]);
+      addToast({
+        "id": new Date().toISOString(),
+        "message": `ERROR: ${apiCall["error"]}`
+      });
+      return;
     }
     dispatch({
       "type": "REMOVE_CHAT",
@@ -25,11 +43,21 @@ const Chat = (props) => {
     if(current_chat === props.name) {
       return;
     }
-    const apiCall = await fetch(`/api/v1/switch_chat_session/${props.name}`)
-    .then(async(response) => response.json())
-    .catch(err => console.log(err));
+    const response = await fetch(`/api/v1/switch_chat_session/${props.name}`)
+    if(!response.ok) {
+      addToast({
+        id: new Date().toISOString(),
+        "message": "ERROR: Server Down. Please Contact Developer."
+      });
+      return;
+    }
+    const apiCall = await response.json();
     if (!apiCall["function_call_success"]) {
-      throw new Error("ERROR: ", apiCall["error"]);
+      addToast({
+        id: new Date().toISOString(),
+        message: `ERROR: ${apiCall["error"]}`
+      });
+      return;
     }
     dispatch({
       "type": "CHANGE_CHAT",
@@ -39,6 +67,46 @@ const Chat = (props) => {
       }
     })
   }
+
+  const handleRename = async(e) => {
+    e.preventDefault();
+    if(chatName.trim() === oldChatName.trim()) {
+      return;
+    }
+    try {
+      const response = await fetch("/api/v1/rename_chat", {
+        "method": "PATCH",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": JSON.stringify({
+          "old_name": oldChatName,
+          "new_name": chatName
+        })
+      });
+      if(!response.ok) {
+        throw new Error("ERROR: Server Down. Please Contact Developer.");
+      }
+      const data = await response.json();
+      if(!data["function_call_success"]) {
+        throw new Error(`ERROR: ${data["error"]}`);
+      }
+      dispatch({
+        "type": "RENAME_CHAT",
+        "payload": {
+          "old_name": oldChatName,
+          "new_name": chatName
+        }
+      });
+      setOldChatName(prev => chatName);
+    }
+    catch(err) {
+      addToast({
+        "id": new Date().toISOString(),
+        "message": err
+      })
+    }
+  }
   return (
     <>
       <Button
@@ -47,7 +115,14 @@ const Chat = (props) => {
         style={{"width": "calc(100% - 16px)"}}
         onClick={handleSelection}
       >
-        <h6 className="m-0">{props.name}</h6>
+        <Form.Control
+          type="text"
+          value={chatName}
+          onChange={e => setChatName(prev => e.target.value)}
+          onBlur={handleRename}
+          aria-describedby="renameChat"
+          className="m-0 border-0"
+          style={{"backgroundColor": "transparent"}}/>
         <FaTrashAlt color="gray" onClick={handleRemoval}/>
       </Button>
     </>

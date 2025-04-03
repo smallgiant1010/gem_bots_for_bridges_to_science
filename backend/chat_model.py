@@ -216,8 +216,8 @@ class ChatBot(CustomFileHandler):
         all_files = list(self.mongo_all_documents_collection.find({}))
         if not all_files:
             return {
-                "error": "There are currently no files uploaded",
-                "function_call_success": False
+                "files": [],
+                "function_call_success": True
             }
         
         file_names = [file["file_name"] for file in all_files]
