@@ -27,7 +27,7 @@ const AccessPage = () => {
                 setWrongPassword(true);
             }
             else{
-                const accessToken = CryptoJS.SHA256(enteredPassword).toString(CryptoJS.enc.Base64);
+                const accessToken = CryptoJS.SHA256(process.env.REACT_APP_FRONTEND_ACCESS_CODE).toString(CryptoJS.enc.Base64);
                 sessionStorage.setItem("access-token", accessToken);
                 navigate("/main");
             }
