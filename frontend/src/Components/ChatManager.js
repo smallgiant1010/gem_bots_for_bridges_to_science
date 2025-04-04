@@ -44,12 +44,12 @@ const ChatManager = () => {
   //   console.log(chats);
   // }, [chats]);
 
-  const handleCreation = async(e) => {
+  const handleCreation = async (e) => {
     e.preventDefault();
     const response = await fetch("/api/v1/create_new_session", {
       "method": "POST",
     })
-    if(!response.ok) {
+    if (!response.ok) {
       addToast({
         id: new Date().toISOString(),
         message: "ERROR: Server Down. Please Contact Developer."
@@ -71,6 +71,7 @@ const ChatManager = () => {
       }
     });
   };
+
 
   return (
     <Col style={{ backgroundColor: "rgb(52, 58, 64)" }} className="min-vh-100 w-100 d-none d-md-block">

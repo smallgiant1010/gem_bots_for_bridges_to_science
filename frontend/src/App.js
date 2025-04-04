@@ -1,25 +1,18 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
-import Container from "react-bootstrap/Container";
-import Row from "react-bootstrap/Row";
-import ChatManager from "./Components/ChatManager";
-import FileManager from "./Components/FileManager";
-import MessageManager from "./Components/MessageManager";
-import ToastStack from "./Components/ToastStack";
-import { ToastContextProvider } from "./Context/ToastContext";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import ContentPage from "./Pages/ContentPage";
+import AccessPage from "./Pages/AccessPage";
+
 
 function App() {
   return (
-    <ToastContextProvider>
-      <Container fluid>
-        <Row>
-          <ChatManager />
-          <MessageManager />
-          <FileManager />
-        </Row>
-      </Container>
-      <ToastStack />
-    </ToastContextProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<AccessPage />} />
+        <Route path="/main" element={<ContentPage />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

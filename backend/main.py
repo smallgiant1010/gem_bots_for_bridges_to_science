@@ -1,3 +1,4 @@
+import bcrypt
 from fastapi import FastAPI, UploadFile
 from pydantic import BaseModel
 from chat_model import ChatBot
@@ -37,6 +38,25 @@ class Files_To_Be_Removed(BaseModel):
 class Chat_Rename(BaseModel):
     old_name: str
     new_name: str
+
+# @app.post("/api/v1/hash_password")
+# async def hash_password(password):
+#     salt = bcrypt.gensalt()
+#     hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt=salt)
+
+#     return {
+#         "password": password,
+#         "hashed_password": hashed_password
+#     }
+
+@app.post("/api/v1/compare_password")
+async def post_password(password):
+    input_password = password.encode('utf-8')
+    hashed_password = str(os.environ.get("ACCESS_CODE_HASHED")).encode("utf-8")
+    check = bcrypt.checkpw(input_password, hashed_password)
+    return {
+        "check": check
+    }
 
 # Upload A file
 @app.post("/api/v1/upload_file")

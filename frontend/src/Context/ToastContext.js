@@ -20,7 +20,6 @@ export const ToastContextProvider = ({ children }) => {
 
 export const useToastContext = () => {
     const toastContext = useContext(ToastContext);
-    console.log(toastContext.toasts);
     if(!toastContext) {
         throw new Error("ToastContext Must be used within a ToastContextProvider");
     }
