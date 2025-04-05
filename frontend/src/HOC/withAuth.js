@@ -7,7 +7,7 @@ const withAuth = (WrappedComponent) => {
         const isAuthenticated = sessionStorage.getItem("access-token");
 
         useEffect(() => {
-            if(isAuthenticated !== process.env.REACT_APP_FRONTEND_HASHED_ACCESS_CODE) {
+            if(isAuthenticated !== process.env.REACT_APP_TOKEN_HASH) {
                 navigate("/");
             }
         }, [isAuthenticated, navigate]);
