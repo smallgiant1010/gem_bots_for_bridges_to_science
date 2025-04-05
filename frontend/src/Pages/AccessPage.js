@@ -15,6 +15,7 @@ const AccessPage = () => {
         e.preventDefault();
         setLoading(true);
         console.log(process.env.REACT_APP_ACCESS_CODE);
+        console.log(enteredPassword);
         try {
             if(enteredPassword !== process.env.REACT_APP_ACCESS_CODE) {
                 setWrongPassword(true);
