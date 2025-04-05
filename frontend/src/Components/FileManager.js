@@ -8,6 +8,7 @@ import Col from "react-bootstrap/Col";
 import FileContainer from "./FileContainer";
 import Loading from "./Loading";
 import { useToastContext } from "../Context/ToastContext";
+import { baseAPIUrl } from "../Constants/constants";
 
 const FileManager = () => {
   const { selected_files, dispatch } = useChatContext();
@@ -16,13 +17,13 @@ const FileManager = () => {
 
   const get_all_files = useCallback(async() => {
     try {
-      let response = await fetch("/api/v1/get_files");
+      let response = await fetch(baseAPIUrl + "/api/v1/get_files");
       if(!response.ok) {
         throw new Error("ERROR: Server Down. Please Contact Developer.");
       }
       const all_files_api_call = await response.json();
 
-      response = await fetch("/api/v1/get_current_files_in_store");
+      response = await fetch(baseAPIUrl + "/api/v1/get_current_files_in_store");
       if(!response.ok) {
         throw new Error("ERROR: Server Down. Please Contact Developer.");
       }
@@ -57,7 +58,7 @@ const FileManager = () => {
     const selectedFile = e.target.files[0];
     const formData = new FormData();
     formData.append("file", selectedFile);
-    const response = await fetch("/api/v1/upload_file", {
+    const response = await fetch(baseAPIUrl + "/api/v1/upload_file", {
       method: "POST",
       body: formData,
     });

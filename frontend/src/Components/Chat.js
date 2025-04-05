@@ -4,6 +4,7 @@ import { useChatContext } from "../Context/ChatContext";
 import { Form } from "react-bootstrap";
 import { useState } from "react";
 import { useToastContext } from "../Context/ToastContext";
+import { baseAPIUrl } from "../Constants/constants";
 
 const Chat = (props) => {
   const {current_chat, dispatch} = useChatContext();
@@ -12,7 +13,7 @@ const Chat = (props) => {
   const {addToast} = useToastContext();
   const handleRemoval = async(e) => {
     e.preventDefault();
-    const response = await fetch(`/api/v1/delete_session/${props.name}`, {
+    const response = await fetch(baseAPIUrl + `/api/v1/delete_session/${props.name}`, {
       "method": "DELETE"
     });
     if(!response.ok) {
@@ -43,7 +44,7 @@ const Chat = (props) => {
     if(current_chat === props.name) {
       return;
     }
-    const response = await fetch(`/api/v1/switch_chat_session/${props.name}`)
+    const response = await fetch(baseAPIUrl + `/api/v1/switch_chat_session/${props.name}`)
     if(!response.ok) {
       addToast({
         id: new Date().toISOString(),
@@ -74,7 +75,7 @@ const Chat = (props) => {
       return;
     }
     try {
-      const response = await fetch("/api/v1/rename_chat", {
+      const response = await fetch(baseAPIUrl + "/api/v1/rename_chat", {
         "method": "PATCH",
         "headers": {
           "Content-Type": "application/json"

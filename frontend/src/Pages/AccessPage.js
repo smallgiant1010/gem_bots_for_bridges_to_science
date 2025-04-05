@@ -4,6 +4,7 @@ import { useToastContext } from "../Context/ToastContext";
 import { useNavigate } from "react-router-dom";
 import CryptoJS from "crypto-js";
 import Loading from "../Components/Loading";
+import { baseAPIUrl } from "../Constants/constants";
 
 const AccessPage = () => {
     const [enteredPassword, setEnteredPassword] = useState("");
@@ -16,7 +17,7 @@ const AccessPage = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            const response = await fetch(`/api/v1/compare_password?password=${enteredPassword}`, {
+            const response = await fetch(baseAPIUrl + `/api/v1/compare_password?password=${enteredPassword}`, {
                 "method": "POST"
             });
             if(!response.ok) {

@@ -1,0 +1,1 @@
+export const baseAPIUrl = process.env.REACT_APP_BASE_API_PATH

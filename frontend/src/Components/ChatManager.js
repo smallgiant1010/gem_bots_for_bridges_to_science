@@ -7,6 +7,7 @@ import Col from "react-bootstrap/Col";
 import { useChatContext } from "../Context/ChatContext";
 import Loading from "./Loading";
 import { useToastContext } from "../Context/ToastContext";
+import { baseAPIUrl } from "../Constants/constants";
 
 const ChatManager = () => {
   const { chats, dispatch } = useChatContext();
@@ -14,7 +15,7 @@ const ChatManager = () => {
 
   const getChatSessions = useCallback(async () => {
     try {
-      const response = await fetch("/api/v1/get_chat_names");
+      const response = await fetch(baseAPIUrl + "/api/v1/get_chat_names");
       if (!response.ok) {
         throw new Error("ERROR: Server Down. Please Contact Developer.");
       }
@@ -46,7 +47,7 @@ const ChatManager = () => {
 
   const handleCreation = async (e) => {
     e.preventDefault();
-    const response = await fetch("/api/v1/create_new_session", {
+    const response = await fetch(baseAPIUrl + "/api/v1/create_new_session", {
       "method": "POST",
     })
     if (!response.ok) {

@@ -3,6 +3,7 @@ import { InputGroup, Button, Form } from "react-bootstrap";
 import { useChatContext } from "../Context/ChatContext";
 import Loading from "./Loading";
 import { useToastContext } from "../Context/ToastContext";
+import { baseAPIUrl } from "../Constants/constants";
 
 const Searchbar = () => {
     const [message, setMessage] = useState("");
@@ -28,7 +29,7 @@ const Searchbar = () => {
         setIsLoading(true);
         try {
             const queryParam = encodeURIComponent(message)
-            const response = await fetch(`/api/v1/message_llm?query=${queryParam}`, {
+            const response = await fetch(baseAPIUrl + `/api/v1/message_llm?query=${queryParam}`, {
                 "method": "POST",
             });
             if (!response.ok) {

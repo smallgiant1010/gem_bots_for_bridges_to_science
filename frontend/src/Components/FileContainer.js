@@ -4,6 +4,7 @@ import { useChatContext } from "../Context/ChatContext";
 import { FaTrashAlt } from "react-icons/fa";
 import { IoIosRemoveCircle } from "react-icons/io";
 import { useToastContext } from "../Context/ToastContext";
+import { baseAPIUrl } from "../Constants/constants";
 
 const FileContainer = ({ file_name, start_selected, removeAFile }) => {
   const { selected_files, dispatch } = useChatContext();
@@ -26,7 +27,7 @@ const FileContainer = ({ file_name, start_selected, removeAFile }) => {
     const checked = e.target.checked;
     setCheckBoxState((prev) => checked);
     if (checked) {
-      const response = await fetch("/api/v1/add_to_vector_store", {
+      const response = await fetch(baseAPIUrl + "/api/v1/add_to_vector_store", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -66,7 +67,7 @@ const FileContainer = ({ file_name, start_selected, removeAFile }) => {
 
   const handleRemoval = async (e) => {
     e.preventDefault();
-    const response = await fetch("/api/v1/remove_files", {
+    const response = await fetch(baseAPIUrl + "/api/v1/remove_files", {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
@@ -105,7 +106,7 @@ const FileContainer = ({ file_name, start_selected, removeAFile }) => {
 
   const handleDeletion = async (e) => {
     e.preventDefault();
-    const response = await fetch(`/api/v1/delete_file/${file_name}`, {
+    const response = await fetch(baseAPIUrl + `/api/v1/delete_file/${file_name}`, {
       method: "DELETE",
     });
     if (!response.ok) {

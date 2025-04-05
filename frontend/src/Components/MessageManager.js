@@ -4,6 +4,7 @@ import { Col, ListGroup } from "react-bootstrap";
 import Message from "./Message";
 import Searchbar from "./Searchbar";
 import { useToastContext } from "../Context/ToastContext";
+import { baseAPIUrl } from "../Constants/constants";
 
 const MessageManager = () => {
   const { messages, dispatch } = useChatContext();
@@ -12,7 +13,7 @@ const MessageManager = () => {
 
   const getLatestMessages = useCallback(async() => {
     try {
-      const response = await fetch("/api/v1/get_latest_chat_session");
+      const response = await fetch(baseAPIUrl + "/api/v1/get_latest_chat_session");
       if(!response.ok) {
         throw new Error("ERROR: Server Down. Please Contact developer.");
       }
