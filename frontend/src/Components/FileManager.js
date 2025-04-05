@@ -65,7 +65,7 @@ const FileManager = () => {
     if(!response.ok) {
       addToast({
         id: new Date().toISOString(),
-        message: "ERROR: Server Down. Please Contact Developer"
+        message: "ERROR: Cannot Interpret File."
       });
       return;
     }

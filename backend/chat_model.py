@@ -324,7 +324,7 @@ class ChatBot(CustomFileHandler):
                 self.current_chat_name = new_latest["chat_name"]
             else:
                 result = self.create_new_chat_session()
-                self.current_chat_name = result["chat_name"]
+                self.current_chat_name = result["new_chat_name"]["chat_name"]
         self.initialize_chat_history()
         chat_exists = self.mongo_current_chat_histories.find_one({}, sort=[('_id', -1)])
         if not chat_exists:
@@ -366,7 +366,7 @@ class ChatBot(CustomFileHandler):
     # Create New Chat Session
     def create_new_chat_session(self):
         result = self.mongo_current_chat_histories.insert_one({
-            "chat_name": f"new_chat_{self.number_of_chats}",
+            "chat_name": f"new_chat_{str(uuid4())}",
             "messages": [{
                 "type" : "ai",
                 "message": "How can I help you?",

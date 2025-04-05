@@ -5,12 +5,19 @@ import { Form } from "react-bootstrap";
 import { useState } from "react";
 import { useToastContext } from "../Context/ToastContext";
 import { baseAPIUrl } from "../Constants/constants";
+import { useEffect } from "react";
 
 const Chat = (props) => {
   const {current_chat, dispatch} = useChatContext();
   const [oldChatName, setOldChatName] = useState(props.name);
   const [chatName, setChatName] = useState(oldChatName);
   const {addToast} = useToastContext();
+
+  useEffect(() => {
+    setOldChatName(props.name);
+    setChatName(props.name);
+  }, [props.name]);
+
   const handleRemoval = async(e) => {
     e.preventDefault();
     const response = await fetch(baseAPIUrl + `/api/v1/delete_session/${props.name}`, {

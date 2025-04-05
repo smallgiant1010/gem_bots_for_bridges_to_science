@@ -19,7 +19,7 @@ const ChatContextReducer = (state, action) => {
                 messages: action.payload.messages,
             };
         case "UPDATE_CHATS":
-            return { ...state, chats: [...action.payload.chat_names] };
+            return { ...state, chats: action.payload.chat_names };
         case "ADD_CHAT":
             return { ...state, chats: [action.payload.chat_name, ...state.chats] };
         case "REMOVE_CHAT":

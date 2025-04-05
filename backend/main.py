@@ -11,7 +11,8 @@ load_dotenv()
 app = FastAPI()
 
 origins = [
-    "http://localhost:3000",
+    "http://localhost",
+    os.environ.get("PRODUCTION_URL")
 ]
 
 app.add_middleware(
@@ -24,8 +25,8 @@ app.add_middleware(
 
 
 chatbot = ChatBot(
-    connection_string=str(os.environ.get("MONGODB_URI")), 
-    db_name="langchain_testing", 
+    connection_string=str(os.environ.get("PRODUCTION_MONGODB_URI")), 
+    db_name="bridges_writer_db", 
     document_collection_name="all_documents",
     vector_store_collection_name="vector_store",
     vector_search_index_name="gemini-vector-store-index",
@@ -67,8 +68,12 @@ async def post_upload_file(file: UploadFile):
             content = chatbot.pdf_handler(file)
         case ".docx":
             content = await chatbot.docx_handler(file)
-        case ".txt":
+        case ".txt" | ".md":
             content = await chatbot.plain_text_handler(file)
+        case ".odt":
+            content = await chatbot.rtf_handler(file)
+        case ".rtf":
+            content = await chatbot.rtf_handler(file)
         case _:
             return {
                 "message": f"File does not exist: {file.filename}"
