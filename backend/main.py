@@ -88,7 +88,7 @@ class Chat_Rename(BaseModel):
 #         "hashed_password": hashed_password
 #     }
 
-@app.get("/api/v1/")
+@app.head("/api/v1/")
 def ping_network():
     return {
         "isAlive": True
